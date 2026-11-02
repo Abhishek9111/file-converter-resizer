@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FileForge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #F1F3F8; --surface: #FFFFFF; --surface-raised: #F7F8FB;
+            --text: #1B1F3B; --text-muted: #6E7491; --border: #D8DCE8;
+            --accent: #1A7A6E; --accent-hover: #146259; --accent-subtle: #E4F3F1;
+            --red: #DC2626; --red-subtle: #FEF2F2;
+            --green: #16A34A; --green-subtle: #DCFCE7;
+            --orange: #EA580C;
+            --radius: 10px; --radius-sm: 6px;
+            --font: 'DM Sans', system-ui, -apple-system, sans-serif;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg: #0D1017; --surface: #161B26; --surface-raised: #1E2433;
+                --text: #E0E4EE; --text-muted: #7E86A0; --border: #282E3E;
+                --accent: #3CC9B8; --accent-hover: #51DBC9; --accent-subtle: #162D2A;
+                --red: #F87171; --red-subtle: #2D1517;
+                --green: #4ADE80; --green-subtle: #14532D; --orange: #FB923C;
+                color-scheme: dark;
+            }
+        }
+        :root[data-theme="dark"] {
+            --bg: #0D1017; --surface: #161B26; --surface-raised: #1E2433;
+            --text: #E0E4EE; --text-muted: #7E86A0; --border: #282E3E;
+            --accent: #3CC9B8; --accent-hover: #51DBC9; --accent-subtle: #162D2A;
+            --red: #F87171; --red-subtle: #2D1517;
+            --green: #4ADE80; --green-subtle: #14532D; --orange: #FB923C;
+            color-scheme: dark;
+        }
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+
+        .header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--surface)}
+        .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px;letter-spacing:-0.02em}
+        .logo-icon{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center}
+        .logo-icon svg{width:15px;height:15px}
+        .header-actions{display:flex;gap:6px}
+
+        .btn{font-family:var(--font);font-size:13px;font-weight:600;padding:6px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+        .btn:hover{background:var(--bg)}
+        .btn-sm{padding:5px 10px;font-size:12px}
+        .btn-danger{color:var(--red);border-color:currentColor}
+        .btn-danger:hover{background:var(--red-subtle)}
+        .btn-icon{width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-muted);cursor:pointer;transition:all .15s;flex-shrink:0}
+        .btn-icon:hover{border-color:var(--accent);color:var(--text)}
+        .btn-icon.active{background:var(--accent-subtle);border-color:var(--accent);color:var(--accent)}
+        .btn-icon svg{width:14px;height:14px}
+
+        /* Mode tabs on upload */
+        .mode-tabs{display:flex;gap:4px;padding:3px;background:var(--surface-raised);border-radius:8px;margin-bottom:24px}
+        .mode-tab{flex:1;padding:8px 16px;font-size:14px;font-weight:600;font-family:var(--font);text-align:center;border:none;border-radius:6px;background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s}
+        .mode-tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+        /* Upload */
+        .upload-section{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 53px);padding:24px}
+        .upload-inner{width:100%;max-width:520px}
+        .upload-zone{width:100%;border:2px dashed var(--border);border-radius:14px;padding:48px 32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface)}
+        .upload-zone:hover,.upload-zone.dragover{border-color:var(--accent);background:var(--accent-subtle)}
+        .upload-icon{width:48px;height:48px;margin:0 auto 16px;background:var(--accent-subtle);border-radius:12px;display:flex;align-items:center;justify-content:center}
+        .upload-icon svg{width:24px;height:24px;color:var(--accent)}
+        .upload-title{font-size:16px;font-weight:600;margin-bottom:4px}
+        .upload-subtitle{font-size:13px;color:var(--text-muted);margin-bottom:16px}
+        .upload-formats{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
+        .format-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:3px;background:var(--bg);color:var(--text-muted);letter-spacing:.04em;text-transform:uppercase}
+        .privacy-note{display:flex;align-items:center;gap:6px;margin-top:20px;font-size:12px;color:var(--text-muted)}
+        .privacy-note svg{width:13px;height:13px;flex-shrink:0}
+
+        /* Workspace */
+        .workspace{display:none;height:calc(100vh - 53px)}
+        .workspace.active{display:flex}
+        .preview-panel{flex:1;min-width:0;display:flex;flex-direction:column;padding:12px;gap:10px;overflow-y:auto}
+
+        .file-info{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);font-size:12px}
+        .file-name{font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .file-meta{color:var(--text-muted);display:flex;gap:8px;flex-wrap:wrap;flex:1;min-width:0}
+        .file-meta span{white-space:nowrap}
+        .meta-dot{color:var(--border)}
+        .discard-btn{width:26px;height:26px;padding:0;border:none;border-radius:5px;background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;margin-left:auto}
+        .discard-btn:hover{background:var(--red-subtle);color:var(--red)}
+        .discard-btn svg{width:14px;height:14px}
+
+        .preview-container{flex:1;min-height:180px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+        .preview-container canvas{max-width:100%;max-height:100%;object-fit:contain;position:relative;z-index:1}
+
+        .size-compare{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);font-size:12px}
+        .size-bar{flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+        .size-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+        .size-bar-fill.reduced{background:var(--green)}
+        .size-bar-fill.increased{background:var(--orange)}
+        .size-original{color:var(--text-muted);white-space:nowrap}
+        .size-result{font-weight:600;white-space:nowrap}
+        .size-savings{font-weight:600;white-space:nowrap;padding:2px 6px;border-radius:4px;font-size:11px}
+        .size-savings.positive{background:var(--green-subtle);color:var(--green)}
+        .size-savings.negative{background:var(--red-subtle);color:var(--red)}
+
+        /* Controls panel — compact */
+        .controls-panel{width:280px;flex-shrink:0;border-left:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;overflow-y:auto}
+
+        /* Panel tabs */
+        .panel-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+        .panel-tab{flex:1;padding:10px 4px;font-size:12px;font-weight:600;font-family:var(--font);text-align:center;border:none;background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;border-bottom:2px solid transparent;letter-spacing:.02em}
+        .panel-tab:hover{color:var(--text)}
+        .panel-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+        .tab-content{display:none;flex:1;overflow-y:auto}
+        .tab-content.active{display:block}
+
+        .control-section{padding:14px 16px;border-bottom:1px solid var(--border)}
+        .control-section:last-child{border-bottom:none}
+        .section-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:8px}
+
+        .format-selector{display:flex;gap:4px}
+        .format-btn{flex:1;padding:6px 2px;font-size:12px;font-weight:600;font-family:var(--font);text-align:center;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-muted);cursor:pointer;transition:all .15s}
+        .format-btn:hover{border-color:var(--accent);color:var(--text)}
+        .format-btn.active{background:var(--accent-subtle);border-color:var(--accent);color:var(--accent)}
+
+        .input-row{display:flex;gap:6px;align-items:flex-end;margin-bottom:8px}
+        .input-row:last-child{margin-bottom:0}
+        .input-group{flex:1;min-width:0}
+        .input-label{font-size:11px;font-weight:500;color:var(--text-muted);margin-bottom:2px;display:block}
+        .input-field{width:100%;padding:6px 8px;font-size:13px;font-family:var(--font);border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-raised);color:var(--text);outline:none;transition:border-color .15s}
+        .input-field:focus{border-color:var(--accent)}
+
+        .select-field{width:100%;padding:6px 26px 6px 8px;font-size:13px;font-family:var(--font);border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-raised);color:var(--text);outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236E7491' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;transition:border-color .15s}
+        .select-field:focus{border-color:var(--accent)}
+
+        .aspect-pills{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:8px}
+        .aspect-pill{padding:3px 8px;font-size:11px;font-weight:500;font-family:var(--font);border:1px solid var(--border);border-radius:16px;background:var(--surface);color:var(--text-muted);cursor:pointer;transition:all .15s}
+        .aspect-pill:hover{border-color:var(--accent)}
+        .aspect-pill.active{background:var(--accent-subtle);border-color:var(--accent);color:var(--accent)}
+
+        .transform-row{display:flex;gap:4px}
+        .transform-row .btn-icon{flex:1}
+
+        .slider-row{display:flex;align-items:center;gap:10px}
+        .slider{flex:1;-webkit-appearance:none;appearance:none;height:5px;background:var(--bg);border-radius:3px;outline:none}
+        .slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--surface)}
+        .slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--surface)}
+        .slider-value{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;min-width:28px;text-align:right}
+        .quality-note{font-size:11px;color:var(--text-muted);font-style:italic;margin-top:4px}
+
+        .target-status{display:flex;align-items:center;gap:5px;margin-top:6px;font-size:11px;font-weight:500;padding:5px 8px;border-radius:var(--radius-sm)}
+        .target-status.hit{background:var(--green-subtle);color:var(--green)}
+        .target-status.miss{background:var(--red-subtle);color:var(--red)}
+        .target-status.adjusting{background:var(--accent-subtle);color:var(--accent)}
+        .target-status svg{width:12px;height:12px;flex-shrink:0}
+
+        .presets-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+        .preset-btn{padding:6px 8px;font-size:11px;font-family:var(--font);font-weight:500;text-align:left;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);cursor:pointer;transition:all .15s}
+        .preset-btn:hover{border-color:var(--accent);background:var(--accent-subtle)}
+        .preset-dims{font-size:10px;color:var(--text-muted);display:block}
+
+        .text-link{color:var(--accent);cursor:pointer;font-weight:500;background:none;border:none;font-family:var(--font);font-size:11px;padding:0}
+        .text-link:hover{text-decoration:underline}
+
+        .download-section{padding:14px 16px;margin-top:auto;border-top:1px solid var(--border)}
+        .download-btn{width:100%;padding:10px;font-size:14px;font-weight:600;font-family:var(--font);border:none;border-radius:var(--radius);background:var(--accent);color:#fff;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+        .download-btn:hover{background:var(--accent-hover)}
+        .download-btn:disabled{opacity:.5;cursor:not-allowed}
+        .download-btn svg{width:16px;height:16px}
+
+        .processing-overlay{position:absolute;inset:0;background:rgba(0,0,0,.3);display:none;align-items:center;justify-content:center;border-radius:var(--radius);z-index:10}
+        .processing-overlay.active{display:flex}
+        .spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* File converter workspace */
+        .converter-workspace{display:none;min-height:calc(100vh - 53px);padding:24px;justify-content:center}
+        .converter-workspace.active{display:flex}
+        .converter-inner{width:100%;max-width:640px}
+        .converter-inner h2{font-size:18px;font-weight:700;margin-bottom:16px}
+        .converter-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px}
+        .converter-card h3{font-size:13px;font-weight:600;margin-bottom:10px}
+        .converter-output{background:var(--surface-raised);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:13px;font-family:monospace;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin-top:10px}
+        .converter-actions{display:flex;gap:8px;margin-top:10px}
+        textarea.input-field{min-height:80px;resize:vertical;font-family:monospace;font-size:13px}
+
+        .file-input{display:none}
+
+        @media(max-width:768px){
+            .workspace{flex-direction:column;height:auto;min-height:calc(100vh - 53px)}
+            .controls-panel{width:100%;border-left:none;border-top:1px solid var(--border)}
+            .preview-panel{min-height:220px}
+            .upload-zone{padding:36px 20px}
+            .presets-grid{grid-template-columns:1fr}
+        }
+        @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+    </style>
+</head>
+<body>
+
+<input type="file" id="fileInput" class="file-input" accept="image/*">
+<input type="file" id="converterFileInput" class="file-input" accept=".json,.csv,.md,.txt,.html,.htm,.docx">
+
+<header class="header">
+    <div class="logo">
+        <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+        <span>FileForge</span>
+    </div>
+    <div class="header-actions" id="headerActions" style="display:none">
+        <button class="btn btn-sm" id="newImageBtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New</button>
+        <button class="btn btn-sm btn-danger" id="discardBtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Discard</button>
+    </div>
+</header>
+
+<!-- Upload screen -->
+<section class="upload-section" id="uploadSection">
+    <div class="upload-inner">
+        <div class="mode-tabs" id="modeTabs">
+            <button class="mode-tab active" data-mode="image">Image Tools</button>
+            <button class="mode-tab" data-mode="convert">File Converter</button>
+        </div>
+
+        <!-- Image upload -->
+        <div id="imageUploadPane">
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
+                <div class="upload-title">Drop your image here</div>
+                <div class="upload-subtitle">or click to browse</div>
+                <div class="upload-formats">
+                    <span class="format-tag">PNG</span><span class="format-tag">JPG</span><span class="format-tag">WebP</span><span class="format-tag">GIF</span><span class="format-tag">BMP</span>
+                </div>
+            </div>
+            <div class="privacy-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Everything runs locally — files never leave your device</div>
+        </div>
+
+        <!-- File converter upload -->
+        <div id="convertUploadPane" style="display:none">
+            <div class="converter-card">
+                <h3>Choose conversion</h3>
+                <select class="select-field" id="conversionType" style="margin-bottom:12px">
+                    <option value="json-csv">JSON → CSV</option>
+                    <option value="csv-json">CSV → JSON</option>
+                    <option value="md-html">Markdown → HTML</option>
+                    <option value="base64-encode">File → Base64</option>
+                    <option value="base64-decode">Base64 → File</option>
+                    <option value="docx-pdf">DOCX → PDF</option>
+                </select>
+                <div id="converterInputArea">
+                    <div class="upload-zone" id="converterDropZone" style="padding:32px 20px">
+                        <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+                        <div class="upload-title">Drop your file here</div>
+                        <div class="upload-subtitle">or click to browse</div>
+                        <div class="upload-formats"><span class="format-tag">JSON</span><span class="format-tag">CSV</span><span class="format-tag">MD</span><span class="format-tag">TXT</span><span class="format-tag">DOCX</span></div>
+                    </div>
+                </div>
+                <div id="base64Input" style="display:none">
+                    <label class="input-label">Paste Base64 string</label>
+                    <textarea class="input-field" id="base64Text" placeholder="Paste base64-encoded content here..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Image workspace -->
+<section class="workspace" id="workspace">
+    <div class="preview-panel">
+        <div class="file-info">
+            <span class="file-name" id="fileName"></span>
+            <div class="file-meta" id="fileMeta"></div>
+            <button class="discard-btn" id="discardBtn2" title="Discard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="preview-container" id="previewContainer">
+            <canvas id="previewCanvas"></canvas>
+            <div class="processing-overlay" id="processingOverlay"><div class="spinner"></div></div>
+        </div>
+        <div class="size-compare" id="sizeCompare" style="display:none">
+            <span class="size-original" id="sizeOriginal"></span>
+            <div class="size-bar"><div class="size-bar-fill" id="sizeBarFill"></div></div>
+            <span class="size-result" id="sizeResult"></span>
+            <span class="size-savings" id="sizeSavings"></span>
+        </div>
+    </div>
+
+    <div class="controls-panel">
+        <div class="panel-tabs">
+            <button class="panel-tab active" data-tab="output">Output</button>
+            <button class="panel-tab" data-tab="edit">Edit</button>
+            <button class="panel-tab" data-tab="resize">Resize</button>
+        </div>
+
+        <!-- Output tab -->
+        <div class="tab-content active" id="tab-output">
+            <div class="control-section">
+                <div class="section-label">Format</div>
+                <div class="format-selector" id="formatSelector">
+                    <button class="format-btn" data-format="original">Original</button>
+                    <button class="format-btn" data-format="image/png">PNG</button>
+                    <button class="format-btn" data-format="image/jpeg">JPG</button>
+                    <button class="format-btn" data-format="image/webp">WebP</button>
+                </div>
+            </div>
+            <div class="control-section" id="qualitySection">
+                <div class="section-label">Quality</div>
+                <div id="qualityControls">
+                    <div class="slider-row">
+                        <input type="range" class="slider" id="qualitySlider" min="1" max="100" value="82">
+                        <span class="slider-value" id="qualityValue">82</span>
+                    </div>
+                </div>
+                <div class="quality-note" id="qualityDisabled" style="display:none">PNG is lossless — switch to JPG or WebP to compress.</div>
+            </div>
+            <div class="control-section">
+                <div class="section-label">Target Size</div>
+                <select class="select-field" id="targetSizeSelect">
+                    <option value="0">No limit</option>
+                    <option value="25600">25 KB</option>
+                    <option value="51200">50 KB</option>
+                    <option value="102400">100 KB</option>
+                    <option value="256000">250 KB</option>
+                    <option value="512000">500 KB</option>
+                    <option value="1048576">1 MB</option>
+                    <option value="2097152">2 MB</option>
+                    <option value="5242880">5 MB</option>
+                </select>
+                <div class="target-status" id="targetStatus" style="display:none"></div>
+            </div>
+        </div>
+
+        <!-- Edit tab -->
+        <div class="tab-content" id="tab-edit">
+            <div class="control-section">
+                <div class="section-label">Crop</div>
+                <div class="aspect-pills" id="aspectPills">
+                    <button class="aspect-pill active" data-ratio="free">Free</button>
+                    <button class="aspect-pill" data-ratio="1">1:1</button>
+                    <button class="aspect-pill" data-ratio="1.3333">4:3</button>
+                    <button class="aspect-pill" data-ratio="1.7778">16:9</button>
+                    <button class="aspect-pill" data-ratio="1.5">3:2</button>
+                </div>
+                <div class="input-row">
+                    <div class="input-group"><label class="input-label">X</label><input type="number" class="input-field" id="cropX" min="0" value="0"></div>
+                    <div class="input-group"><label class="input-label">Y</label><input type="number" class="input-field" id="cropY" min="0" value="0"></div>
+                </div>
+                <div class="input-row">
+                    <div class="input-group"><label class="input-label">Width</label><input type="number" class="input-field" id="cropW" min="1"></div>
+                    <div class="input-group"><label class="input-label">Height</label><input type="number" class="input-field" id="cropH" min="1"></div>
+                </div>
+                <button class="text-link" id="resetCropBtn" style="margin-top:4px">Reset to full image</button>
+            </div>
+            <div class="control-section">
+                <div class="section-label">Rotate & Flip</div>
+                <div class="transform-row">
+                    <button class="btn-icon" id="rotateCCW" title="Rotate left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
+                    <button class="btn-icon" id="rotateCW" title="Rotate right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+                    <button class="btn-icon" id="flipH" title="Flip horizontal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 3l5 9-5 9"/><path d="M8 3L3 12l5 9"/><line x1="12" y1="2" x2="12" y2="22" stroke-dasharray="2 2"/></svg></button>
+                    <button class="btn-icon" id="flipV" title="Flip vertical"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8l9-5 9 5"/><path d="M3 16l9 5 9-5"/><line x1="2" y1="12" x2="22" y2="12" stroke-dasharray="2 2"/></svg></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resize tab -->
+        <div class="tab-content" id="tab-resize">
+            <div class="control-section">
+                <div class="section-label">Dimensions</div>
+                <div class="input-row">
+                    <div class="input-group"><label class="input-label">Width (px)</label><input type="number" class="input-field" id="widthInput" min="1" max="10000"></div>
+                    <button class="btn-icon active" id="lockBtn" title="Lock aspect ratio"><svg id="lockIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
+                    <div class="input-group"><label class="input-label">Height (px)</label><input type="number" class="input-field" id="heightInput" min="1" max="10000"></div>
+                </div>
+                <div class="input-row">
+                    <div class="input-group"><label class="input-label">Scale (%)</label><input type="number" class="input-field" id="scaleInput" min="1" max="1000" value="100"></div>
+                </div>
+            </div>
+            <div class="control-section">
+                <div class="section-label">Quick Presets</div>
+                <div class="presets-grid" id="presetsGrid">
+                    <button class="preset-btn" data-w="1080" data-h="1080">Insta Post<span class="preset-dims">1080 x 1080</span></button>
+                    <button class="preset-btn" data-w="1080" data-h="1920">Insta Story<span class="preset-dims">1080 x 1920</span></button>
+                    <button class="preset-btn" data-w="1280" data-h="720">YT Thumb<span class="preset-dims">1280 x 720</span></button>
+                    <button class="preset-btn" data-w="1920" data-h="1080">Full HD<span class="preset-dims">1920 x 1080</span></button>
+                    <button class="preset-btn" data-w="820" data-h="312">FB Cover<span class="preset-dims">820 x 312</span></button>
+                    <button class="preset-btn" data-w="1500" data-h="500">X Header<span class="preset-dims">1500 x 500</span></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="download-section">
+            <button class="download-btn" id="downloadBtn" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- File converter workspace -->
+<section class="converter-workspace" id="converterWorkspace">
+    <div class="converter-inner">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h2 id="converterTitle">Conversion Result</h2>
+            <button class="btn btn-sm" id="backToUpload"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>Back</button>
+        </div>
+        <div class="converter-card">
+            <div class="converter-output" id="converterOutput"></div>
+            <div class="converter-actions">
+                <button class="btn" id="copyResultBtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</button>
+                <button class="btn" id="downloadResultBtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+// ── State ──
+const S = {
+    originalFile:null, originalImage:null, originalWidth:0, originalHeight:0, originalSize:0,
+    cropX:0, cropY:0, cropW:0, cropH:0, cropAspect:'free',
+    rotation:0, flippedH:false, flippedV:false,
+    targetWidth:0, targetHeight:0, lockAspect:true, aspectRatio:1,
+    quality:82, outputFormat:'original', targetSize:0,
+    processedBlob:null, processedUrl:null, processing:false,
+    converterResult:null, converterMime:'text/plain', converterExt:'txt'
+};
+
+const $=id=>document.getElementById(id);
+const previewCanvas=$('previewCanvas');
+
+// ── Helpers ──
+function fmtB(b){if(!b)return'0 B';const k=1024,s=['B','KB','MB','GB'],i=Math.floor(Math.log(b)/Math.log(k));return parseFloat((b/Math.pow(k,i)).toFixed(1))+' '+s[i]}
+function getExt(f){return{['image/png']:'png',['image/jpeg']:'jpg',['image/webp']:'webp'}[f]||'png'}
+function getFmt(m){return{['image/png']:'PNG',['image/jpeg']:'JPEG',['image/webp']:'WebP',['image/gif']:'GIF',['image/bmp']:'BMP'}[m]||'IMG'}
+function outMime(){if(S.outputFormat==='original'){const m=S.originalFile?.type;return(m==='image/jpeg'||m==='image/webp'||m==='image/png')?m:'image/png'}return S.outputFormat}
+function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
+function srcDims(){return(S.rotation===90||S.rotation===270)?{w:S.cropH,h:S.cropW}:{w:S.cropW,h:S.cropH}}
+
+// ── Draw with transforms ──
+function drawTransformed(cvs,w,h){
+    const ctx=cvs.getContext('2d');cvs.width=w;cvs.height=h;
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+    if(outMime()==='image/jpeg'){ctx.fillStyle='#FFF';ctx.fillRect(0,0,w,h)}
+    ctx.save();ctx.translate(w/2,h/2);
+    ctx.rotate(S.rotation*Math.PI/180);
+    ctx.scale(S.flippedH?-1:1,S.flippedV?-1:1);
+    let dw=w,dh=h;if(S.rotation===90||S.rotation===270){dw=h;dh=w}
+    ctx.drawImage(S.originalImage,S.cropX,S.cropY,S.cropW,S.cropH,-dw/2,-dh/2,dw,dh);
+    ctx.restore();
+}
+
+// ── Process ──
+const processDebounced=debounce(processImage,150);
+function processImage(){
+    if(!S.originalImage||S.processing)return;
+    S.processing=true;$('processingOverlay').classList.add('active');
+    requestAnimationFrame(()=>{
+        const w=Math.max(1,Math.round(S.targetWidth)),h=Math.max(1,Math.round(S.targetHeight));
+        drawTransformed(previewCanvas,w,h);
+        previewCanvas.toBlob(blob=>{
+            if(S.processedUrl)URL.revokeObjectURL(S.processedUrl);
+            S.processedBlob=blob;S.processedUrl=URL.createObjectURL(blob);
+            updateSizeBar(blob.size);
+            $('downloadBtn').disabled=false;S.processing=false;$('processingOverlay').classList.remove('active');
+        },outMime(),S.quality/100);
+    });
+}
+
+function updateSizeBar(n){
+    $('sizeCompare').style.display='flex';
+    $('sizeOriginal').textContent=fmtB(S.originalSize);$('sizeResult').textContent=fmtB(n);
+    const r=n/S.originalSize,p=Math.round((1-r)*100);
+    $('sizeBarFill').style.width=Math.min(r*100,100)+'%';
+    $('sizeBarFill').className='size-bar-fill '+(r<=1?'reduced':'increased');
+    const sv=$('sizeSavings');
+    if(p>0){sv.textContent='-'+p+'%';sv.className='size-savings positive'}
+    else if(p<0){sv.textContent='+'+Math.abs(p)+'%';sv.className='size-savings negative'}
+    else{sv.textContent='0%';sv.className='size-savings'}
+}
+
+// ── Auto-adjust quality ──
+async function autoAdjustQuality(){
+    if(!S.targetSize||!S.originalImage)return;
+    const mime=outMime();const ts=$('targetStatus');
+    if(mime==='image/png'){ts.style.display='flex';ts.className='target-status miss';ts.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>PNG is lossless — use JPG/WebP';return}
+    ts.style.display='flex';ts.className='target-status adjusting';ts.textContent='Adjusting...';
+    const w=Math.max(1,Math.round(S.targetWidth)),h=Math.max(1,Math.round(S.targetHeight));
+    const tmp=document.createElement('canvas');drawTransformed(tmp,w,h);
+    let lo=1,hi=100,best=1;
+    for(let i=0;i<8;i++){const mid=Math.round((lo+hi)/2);const blob=await new Promise(r=>tmp.toBlob(r,mime,mid/100));if(blob.size<=S.targetSize){best=mid;lo=mid+1}else{hi=mid-1}}
+    const fb=await new Promise(r=>tmp.toBlob(r,mime,best/100));
+    S.quality=best;$('qualitySlider').value=best;$('qualityValue').textContent=best;
+    if(fb.size<=S.targetSize){ts.className='target-status hit';ts.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>${fmtB(fb.size)} at quality ${best}`}
+    else{ts.className='target-status miss';ts.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>${fmtB(fb.size)} — reduce dimensions`}
+    processImage();
+}
+
+function triggerProcess(){S.targetSize>0?autoAdjustQuality():processImage()}
+const triggerDebounced=debounce(triggerProcess,250);
+
+function syncResize(){const s=srcDims();S.targetWidth=s.w;S.targetHeight=s.h;S.aspectRatio=s.w/s.h;$('widthInput').value=s.w;$('heightInput').value=s.h;$('scaleInput').value=100}
+function setFmt(f){S.outputFormat=f;$('formatSelector').querySelectorAll('.format-btn').forEach(b=>b.classList.toggle('active',b.dataset.format===f));const m=outMime(),sq=m==='image/jpeg'||m==='image/webp';$('qualityControls').style.display=sq?'block':'none';$('qualityDisabled').style.display=sq?'none':'block'}
+function clampCrop(){S.cropX=Math.max(0,Math.min(S.cropX,S.originalWidth-1));S.cropY=Math.max(0,Math.min(S.cropY,S.originalHeight-1));S.cropW=Math.max(1,Math.min(S.cropW,S.originalWidth-S.cropX));S.cropH=Math.max(1,Math.min(S.cropH,S.originalHeight-S.cropY))}
+function updateCropInputs(){$('cropX').value=S.cropX;$('cropY').value=S.cropY;$('cropW').value=S.cropW;$('cropH').value=S.cropH}
+
+function discardImage(){
+    if(S.processedUrl)URL.revokeObjectURL(S.processedUrl);
+    Object.assign(S,{processedBlob:null,processedUrl:null,originalImage:null,rotation:0,flippedH:false,flippedV:false,cropAspect:'free',targetSize:0});
+    $('workspace').classList.remove('active');$('uploadSection').style.display='';$('headerActions').style.display='none';
+    $('sizeCompare').style.display='none';$('targetStatus').style.display='none';$('targetSizeSelect').value='0';
+    $('downloadBtn').disabled=true;$('fileInput').value='';
+    $('flipH').classList.remove('active');$('flipV').classList.remove('active');
+    $('aspectPills').querySelectorAll('.aspect-pill').forEach((p,i)=>p.classList.toggle('active',i===0));
+}
+
+function handleFile(file){
+    if(!file||!file.type.startsWith('image/'))return;
+    S.originalFile=file;S.originalSize=file.size;
+    const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{
+        S.originalImage=img;S.originalWidth=img.naturalWidth;S.originalHeight=img.naturalHeight;
+        S.cropX=0;S.cropY=0;S.cropW=img.naturalWidth;S.cropH=img.naturalHeight;
+        S.rotation=0;S.flippedH=false;S.flippedV=false;S.cropAspect='free';
+        updateCropInputs();syncResize();
+        $('fileName').textContent=file.name;
+        $('fileMeta').innerHTML=`<span>${img.naturalWidth} x ${img.naturalHeight}</span><span class="meta-dot">&middot;</span><span>${getFmt(file.type)}</span><span class="meta-dot">&middot;</span><span>${fmtB(file.size)}</span>`;
+        setFmt('original');
+        $('uploadSection').style.display='none';$('workspace').classList.add('active');$('headerActions').style.display='flex';
+        $('flipH').classList.remove('active');$('flipV').classList.remove('active');
+        $('aspectPills').querySelectorAll('.aspect-pill').forEach((p,i)=>p.classList.toggle('active',i===0));
+        triggerProcess();URL.revokeObjectURL(url);
+    };
+    img.src=url;
+}
+
+// ── File Converter Logic ──
+function jsonToCsv(json){
+    const arr=JSON.parse(json);if(!Array.isArray(arr)||!arr.length)return'No array found';
+    const keys=Object.keys(arr[0]);
+    const escape=v=>{const s=String(v??'');return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s};
+    return[keys.join(','),...arr.map(r=>keys.map(k=>escape(r[k])).join(','))].join('\n');
+}
+
+function csvToJson(csv){
+    const lines=csv.trim().split('\n');if(lines.length<2)return'[]';
+    const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+    const result=lines.slice(1).map(line=>{
+        const vals=line.split(',').map(v=>v.trim().replace(/^"|"$/g,''));
+        const obj={};headers.forEach((h,i)=>{const v=vals[i]??'';obj[h]=isNaN(v)||v===''?v:Number(v)});return obj;
+    });
+    return JSON.stringify(result,null,2);
+}
+
+function mdToHtml(md){
+    return md
+        .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+        .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+        .replace(/^# (.+)$/gm,'<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g,'<em>$1</em>')
+        .replace(/`(.+?)`/g,'<code>$1</code>')
+        .replace(/^\- (.+)$/gm,'<li>$1</li>')
+        .replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>')
+        .replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2">$1</a>')
+        .replace(/^(?!<[hulo])(.*\S.*)$/gm,'<p>$1</p>')
+        .replace(/\n{2,}/g,'\n');
+}
+
+function processConversion(file,text){
+    const type=$('conversionType').value;
+    let result='',title='Result';
+    try{
+        switch(type){
+            case'json-csv':
+                result=jsonToCsv(text);title='JSON → CSV';
+                S.converterMime='text/csv';S.converterExt='csv';break;
+            case'csv-json':
+                result=csvToJson(text);title='CSV → JSON';
+                S.converterMime='application/json';S.converterExt='json';break;
+            case'md-html':
+                result=mdToHtml(text);title='Markdown → HTML';
+                S.converterMime='text/html';S.converterExt='html';break;
+            case'base64-encode':
+                result=btoa(String.fromCharCode(...new Uint8Array(text)));
+                title='Base64 Encoded';S.converterMime='text/plain';S.converterExt='txt';break;
+            case'base64-decode':
+                const bin=atob(text.trim());
+                const bytes=new Uint8Array(bin.length);
+                for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+                result='Binary data decoded ('+fmtB(bytes.length)+')';
+                S.converterResult=bytes;S.converterMime='application/octet-stream';S.converterExt='bin';
+                showConverterResult(result,title);return;
+            case'docx-pdf':
+                convertDocxToPdf(file);return;
+        }
+    }catch(e){result='Error: '+e.message}
+    S.converterResult=result;
+    showConverterResult(result,title);
+}
+
+async function convertDocxToPdf(file){
+    if(!file){showConverterResult('Please upload a .docx file','DOCX → PDF');return}
+    showConverterResult('Converting… this may take a moment','DOCX → PDF');
+    try{
+        const arrayBuffer=await file.arrayBuffer();
+        const {value:html}=await mammoth.convertToHtml({arrayBuffer});
+        const container=document.createElement('div');
+        container.style.cssText='position:fixed;left:-9999px;top:0;width:794px;padding:40px 50px;background:#fff;color:#000;font-family:serif;font-size:14px;line-height:1.6';
+        container.innerHTML=html;
+        document.body.appendChild(container);
+        const canvas=await html2canvas(container,{scale:2,useCORS:true,backgroundColor:'#ffffff'});
+        document.body.removeChild(container);
+        const {jsPDF}=window.jspdf;
+        const imgW=canvas.width,imgH=canvas.height;
+        const pdfW=210,pdfH=297;
+        const contentW=pdfW-20,scale=contentW/imgW;
+        const contentH=imgH*scale;
+        const pageContentH=pdfH-20;
+        const pages=Math.ceil(contentH/pageContentH);
+        const pdf=new jsPDF('p','mm','a4');
+        const imgData=canvas.toDataURL('image/jpeg',0.95);
+        for(let i=0;i<pages;i++){
+            if(i>0)pdf.addPage();
+            pdf.addImage(imgData,'JPEG',10,10-(i*pageContentH),contentW,contentH);
+        }
+        const pdfBlob=pdf.output('blob');
+        S.converterResult=pdfBlob;S.converterMime='application/pdf';S.converterExt='pdf';
+        $('converterOutput').textContent='PDF generated ('+fmtB(pdfBlob.size)+') — '+pages+' page'+(pages>1?'s':'');
+    }catch(e){$('converterOutput').textContent='Error: '+e.message}
+}
+
+function showConverterResult(result,title){
+    $('converterTitle').textContent=title;
+    $('converterOutput').textContent=typeof result==='string'?result:'[Binary data]';
+    $('uploadSection').style.display='none';
+    $('converterWorkspace').classList.add('active');
+    $('headerActions').style.display='flex';
+}
+
+// ── Events ──
+
+// Mode tabs
+$('modeTabs').addEventListener('click',e=>{
+    const tab=e.target.closest('.mode-tab');if(!tab)return;
+    $('modeTabs').querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('active',t===tab));
+    const mode=tab.dataset.mode;
+    $('imageUploadPane').style.display=mode==='image'?'':'none';
+    $('convertUploadPane').style.display=mode==='convert'?'':'none';
+    $('base64Input').style.display='none';$('converterInputArea').style.display='';
+    $('conversionType').dispatchEvent(new Event('change'));
+});
+
+// Conversion type toggle
+$('conversionType').addEventListener('change',()=>{
+    const t=$('conversionType').value;
+    $('base64Input').style.display=t==='base64-decode'?'':'none';
+    $('converterInputArea').style.display=t==='base64-decode'?'none':'';
+});
+
+// Panel tabs
+document.querySelector('.panel-tabs').addEventListener('click',e=>{
+    const tab=e.target.closest('.panel-tab');if(!tab)return;
+    document.querySelectorAll('.panel-tab').forEach(t=>t.classList.toggle('active',t===tab));
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active',c.id==='tab-'+tab.dataset.tab));
+});
+
+// Upload
+$('uploadZone').addEventListener('click',()=>$('fileInput').click());
+$('fileInput').addEventListener('change',e=>{if(e.target.files.length)handleFile(e.target.files[0])});
+$('uploadZone').addEventListener('dragover',e=>{e.preventDefault();$('uploadZone').classList.add('dragover')});
+$('uploadZone').addEventListener('dragleave',()=>$('uploadZone').classList.remove('dragover'));
+$('uploadZone').addEventListener('drop',e=>{e.preventDefault();$('uploadZone').classList.remove('dragover');if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0])});
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files.length&&e.dataTransfer.files[0].type.startsWith('image/'))handleFile(e.dataTransfer.files[0])});
+document.addEventListener('paste',e=>{const items=e.clipboardData?.items;if(!items)return;for(const item of items){if(item.type.startsWith('image/')){e.preventDefault();handleFile(item.getAsFile());return}}});
+
+// Converter file upload
+$('converterDropZone').addEventListener('click',()=>$('converterFileInput').click());
+$('converterDropZone').addEventListener('dragover',e=>{e.preventDefault();$('converterDropZone').classList.add('dragover')});
+$('converterDropZone').addEventListener('dragleave',()=>$('converterDropZone').classList.remove('dragover'));
+$('converterDropZone').addEventListener('drop',e=>{e.preventDefault();$('converterDropZone').classList.remove('dragover');if(e.dataTransfer.files.length)handleConverterFile(e.dataTransfer.files[0])});
+$('converterFileInput').addEventListener('change',e=>{if(e.target.files.length)handleConverterFile(e.target.files[0])});
+
+function handleConverterFile(file){
+    const type=$('conversionType').value;
+    if(type==='docx-pdf'){
+        processConversion(file,null);
+    }else if(type==='base64-encode'){
+        const reader=new FileReader();
+        reader.onload=()=>processConversion(file,reader.result);
+        reader.readAsArrayBuffer(file);
+    }else{
+        const reader=new FileReader();
+        reader.onload=()=>processConversion(file,reader.result);
+        reader.readAsText(file);
+    }
+}
+
+// Base64 decode from textarea
+$('base64Text').addEventListener('input',debounce(()=>{
+    const text=$('base64Text').value.trim();
+    if(text.length>10)processConversion(null,text);
+},500));
+
+// Converter results
+$('copyResultBtn').addEventListener('click',()=>{
+    const text=typeof S.converterResult==='string'?S.converterResult:$('converterOutput').textContent;
+    navigator.clipboard.writeText(text).then(()=>{$('copyResultBtn').textContent='Copied!';setTimeout(()=>{$('copyResultBtn').innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy'},1500)});
+});
+$('downloadResultBtn').addEventListener('click',()=>{
+    if(!S.converterResult)return;
+    const data=typeof S.converterResult==='string'?S.converterResult:S.converterResult;
+    const blob=new Blob([data],{type:S.converterMime});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='converted.'+S.converterExt;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+});
+$('backToUpload').addEventListener('click',()=>{
+    $('converterWorkspace').classList.remove('active');$('uploadSection').style.display='';$('headerActions').style.display='none';
+});
+
+// Discard
+$('newImageBtn').addEventListener('click',discardImage);
+$('discardBtn').addEventListener('click',()=>{if($('converterWorkspace').classList.contains('active')){$('converterWorkspace').classList.remove('active');$('uploadSection').style.display='';$('headerActions').style.display='none'}else discardImage()});
+$('discardBtn2').addEventListener('click',discardImage);
+
+// Format
+$('formatSelector').addEventListener('click',e=>{const b=e.target.closest('.format-btn');if(!b)return;setFmt(b.dataset.format);triggerProcess()});
+
+// Crop
+const onCrop=debounce(()=>{S.cropX=parseInt($('cropX').value)||0;S.cropY=parseInt($('cropY').value)||0;S.cropW=parseInt($('cropW').value)||1;S.cropH=parseInt($('cropH').value)||1;clampCrop();syncResize();triggerProcess()},200);
+$('cropX').addEventListener('input',onCrop);$('cropY').addEventListener('input',onCrop);
+$('cropW').addEventListener('input',()=>{if(S.cropAspect!=='free'){$('cropH').value=Math.round((parseInt($('cropW').value)||1)/parseFloat(S.cropAspect))}onCrop()});
+$('cropH').addEventListener('input',()=>{if(S.cropAspect!=='free'){$('cropW').value=Math.round((parseInt($('cropH').value)||1)*parseFloat(S.cropAspect))}onCrop()});
+$('aspectPills').addEventListener('click',e=>{const p=e.target.closest('.aspect-pill');if(!p)return;S.cropAspect=p.dataset.ratio;$('aspectPills').querySelectorAll('.aspect-pill').forEach(q=>q.classList.toggle('active',q===p));if(S.cropAspect==='free'){S.cropX=0;S.cropY=0;S.cropW=S.originalWidth;S.cropH=S.originalHeight;updateCropInputs();syncResize();triggerProcess()}else{const r=parseFloat(S.cropAspect),ow=S.originalWidth,oh=S.originalHeight;let cw,ch;if(ow/oh>r){ch=oh;cw=Math.round(oh*r)}else{cw=ow;ch=Math.round(ow/r)}S.cropW=cw;S.cropH=ch;S.cropX=Math.round((ow-cw)/2);S.cropY=Math.round((oh-ch)/2);clampCrop();updateCropInputs();syncResize();triggerProcess()}});
+$('resetCropBtn').addEventListener('click',()=>{S.cropX=0;S.cropY=0;S.cropW=S.originalWidth;S.cropH=S.originalHeight;S.cropAspect='free';$('aspectPills').querySelectorAll('.aspect-pill').forEach((p,i)=>p.classList.toggle('active',i===0));updateCropInputs();syncResize();triggerProcess()});
+
+// Rotate & Flip
+$('rotateCW').addEventListener('click',()=>{S.rotation=(S.rotation+90)%360;syncResize();triggerProcess()});
+$('rotateCCW').addEventListener('click',()=>{S.rotation=(S.rotation+270)%360;syncResize();triggerProcess()});
+$('flipH').addEventListener('click',()=>{S.flippedH=!S.flippedH;$('flipH').classList.toggle('active',S.flippedH);triggerProcess()});
+$('flipV').addEventListener('click',()=>{S.flippedV=!S.flippedV;$('flipV').classList.toggle('active',S.flippedV);triggerProcess()});
+
+// Resize
+$('widthInput').addEventListener('input',()=>{const w=parseInt($('widthInput').value)||1;S.targetWidth=w;if(S.lockAspect){S.targetHeight=Math.round(w/S.aspectRatio);$('heightInput').value=S.targetHeight}$('scaleInput').value=Math.round((w/srcDims().w)*100);triggerDebounced()});
+$('heightInput').addEventListener('input',()=>{const h=parseInt($('heightInput').value)||1;S.targetHeight=h;if(S.lockAspect){S.targetWidth=Math.round(h*S.aspectRatio);$('widthInput').value=S.targetWidth}$('scaleInput').value=Math.round((h/srcDims().h)*100);triggerDebounced()});
+$('scaleInput').addEventListener('input',()=>{const s=parseInt($('scaleInput').value)||1,d=srcDims();S.targetWidth=Math.round(d.w*s/100);S.targetHeight=Math.round(d.h*s/100);$('widthInput').value=S.targetWidth;$('heightInput').value=S.targetHeight;triggerDebounced()});
+$('lockBtn').addEventListener('click',()=>{S.lockAspect=!S.lockAspect;$('lockBtn').classList.toggle('active',S.lockAspect);if(S.lockAspect)S.aspectRatio=S.targetWidth/S.targetHeight;$('lockIcon').innerHTML=S.lockAspect?'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>':'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5"/>'});
+
+// Quality
+$('qualitySlider').addEventListener('input',()=>{S.quality=parseInt($('qualitySlider').value);$('qualityValue').textContent=S.quality;processDebounced()});
+
+// Target size
+$('targetSizeSelect').addEventListener('change',()=>{S.targetSize=parseInt($('targetSizeSelect').value);if(!S.targetSize){$('targetStatus').style.display='none';processImage()}else autoAdjustQuality()});
+
+// Presets
+$('presetsGrid').addEventListener('click',e=>{const b=e.target.closest('.preset-btn');if(!b)return;S.targetWidth=parseInt(b.dataset.w);S.targetHeight=parseInt(b.dataset.h);S.lockAspect=false;$('lockBtn').classList.remove('active');$('lockIcon').innerHTML='<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5"/>';$('widthInput').value=S.targetWidth;$('heightInput').value=S.targetHeight;$('scaleInput').value=Math.round((S.targetWidth/srcDims().w)*100);triggerProcess()});
+
+// Download
+$('downloadBtn').addEventListener('click',()=>{if(!S.processedBlob)return;const a=document.createElement('a');a.href=S.processedUrl;a.download=S.originalFile.name.replace(/\.[^.]+$/,'')+'_fileforge.'+getExt(outMime());document.body.appendChild(a);a.click();document.body.removeChild(a)});
+</script>
+</body>
+</html>
